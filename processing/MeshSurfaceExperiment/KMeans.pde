@@ -1,5 +1,8 @@
 // based on https://openprocessing.org/sketch/51404/
 
+import java.util.Comparator;
+import java.util.Collections;
+
 class Kmeans {
 
   ArrayList<KParticle> particles;
@@ -75,6 +78,8 @@ class Kmeans {
         clusters.get(particle.centroidIndex).points.add(particle.position);
       }
       
+      int clusterStartIndex = int(random(clusters.size()));
+      Collections.sort(clusters, new ClusterComparator(clusters.get(clusterStartIndex))); // sort clusters by centroid  
       ready = true;
     }
     
@@ -217,3 +222,27 @@ class KParticle {
    }
    
  }
+ 
+ 
+ class ClusterComparator implements Comparator<KCluster> {
+
+  KCluster compareToV;
+
+  ClusterComparator(KCluster compareToV) {
+    this.compareToV = compareToV;
+  }
+
+  int compare(KCluster v1, KCluster v2) {
+    float d1 = v1.centroid.dist(compareToV.centroid);
+    float d2 = v2.centroid.dist(compareToV.centroid);
+
+    if (d1 < d2) {
+      return -1;
+    } else if (d1 > d2) {
+      return 1;
+    } else {
+      return 0;
+    }
+  } 
+  
+}
