@@ -6,9 +6,9 @@ class MeshSurface {
   ArrayList<PVector> points;
   ArrayList<PVector> strokePoints;
   ArrayList<Stroke> strokes;
-  int maxStrokePointCount = 100;
-  float maxPointDistance = 200;
-  int numCentroids = 10;
+  int maxStrokePointCount = 200;
+  float maxPointDistance = 100;
+  int numCentroids = 300;
   float globalScale = 1000;
   PShape ps;
   Kmeans kmeans;
@@ -60,28 +60,30 @@ class MeshSurface {
   }
     
   void chooseStartingPoint() {
-    currentCluster = kmeans.clusters.get(whichCluster);
-
-    if (currentCluster.points.size() > 0) {
-      ready = false;
-      strokePoints = new ArrayList<PVector>();
-    
-      int index = int(random(currentCluster.points.size()));
-      PVector startPos = currentCluster.points.get(index);
-      currentCluster.points.remove(index);
-      strokePoints.add(startPos);
-      Collections.sort(currentCluster.points, new DistanceComparator(startPos)); // sort points by distance from centroid  
+    if (whichCluster < kmeans.clusters.size()) {
+      currentCluster = kmeans.clusters.get(whichCluster);
+  
+      if (currentCluster.points.size() > 0) {
+        ready = false;
+        strokePoints = new ArrayList<PVector>();
       
-      regenerateShape();
+        int index = int(random(currentCluster.points.size()));
+        PVector startPos = currentCluster.points.get(index);
+        currentCluster.points.remove(index);
+        strokePoints.add(startPos);
+        Collections.sort(currentCluster.points, new DistanceComparator(startPos)); // sort points by distance from centroid        
+      } else {
+        advanceCluster();
+      }
     } else {
-      advanceCluster();
+      ready = true;
     }
   }
   
   void advanceStroke() {
     if (strokePoints.size() > 1) {
       Stroke stroke = new Stroke(strokePoints);
-      stroke.refine();
+      //stroke.refine();
       strokes.add(stroke);
     }
     
@@ -99,7 +101,7 @@ class MeshSurface {
   }
   
   void update() {
-    if (kmeans.ready) {
+    if (!ready && kmeans.ready) {
       if (firstRun) {
         regenerateShape();
         chooseStartingPoint();
@@ -111,7 +113,6 @@ class MeshSurface {
           currentCluster.points.remove(0);
           
           float nextDist = currentPos.dist(nextPos);
-          println("Next distance: " + nextDist);
           if (nextDist < maxPointDistance) {
             strokePoints.add(nextPos);
           }

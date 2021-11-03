@@ -78,8 +78,7 @@ class Kmeans {
         clusters.get(particle.centroidIndex).points.add(particle.position);
       }
       
-      int clusterStartIndex = int(random(clusters.size()));
-      Collections.sort(clusters, new ClusterComparator(clusters.get(clusterStartIndex))); // sort clusters by centroid  
+      //Collections.sort(clusters, new ClusterComparator(clusters.get(0))); // sort clusters by centroid  
       ready = true;
     }
     
