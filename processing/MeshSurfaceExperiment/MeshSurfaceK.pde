@@ -1,22 +1,25 @@
-import java.util.Comparator;
-import java.util.Collections;
-
-class MeshSurface {
+class MeshSurfaceK {
   
   ArrayList<PVector> points;
   ArrayList<PVector> strokePoints;
   ArrayList<Stroke> strokes;
-  int maxStrokePointCount = 200;
+  int maxStrokePointCount = 500;
   float maxPointDistance = 100;
+  int numCentroids = 500;
   float globalScale = 1000;
   PShape ps;
+  Kmeans kmeans;
+  int whichCluster = 0;
+  KCluster currentCluster;
   boolean ready = false;
   boolean firstRun = true;
-  int resample = 10;
+  int minClusterPointsRemaining = 10;
+  int resample = 50;
   
-  MeshSurface(String url) { 
+  MeshSurfaceK(String url) { 
     points = loadFromShape(url);
     strokes = new ArrayList<Stroke>();
+    kmeans = new Kmeans(points, numCentroids);
   }
   
   void regenerateShape() {
@@ -24,8 +27,10 @@ class MeshSurface {
     ps.beginShape(POINTS);
     ps.stroke(0);
     ps.strokeWeight(3);
-    for (PVector point : points) {
-      ps.vertex(point.x, point.y, point.z);
+    for (KCluster cluster : kmeans.clusters) {
+      for (PVector point : cluster.points) {
+        ps.vertex(point.x, point.y, point.z);
+      }
     }
     ps.endShape();
   }
@@ -52,16 +57,22 @@ class MeshSurface {
     return returns;
   }
     
-  void chooseStartingPoint() {  
-    if (points.size() > 0) {
-      ready = false;
-      strokePoints = new ArrayList<PVector>();
+  void chooseStartingPoint() {
+    if (whichCluster < kmeans.clusters.size()) {
+      currentCluster = kmeans.clusters.get(whichCluster);
+  
+      if (currentCluster.points.size() > 0) {
+        ready = false;
+        strokePoints = new ArrayList<PVector>();
       
-      int index = int(random(points.size()));
-      PVector startPos = points.get(index);
-      points.remove(index);
-      strokePoints.add(startPos);
-      Collections.sort(points, new DistanceComparator(startPos)); // sort points by distance from centroid        
+        int index = int(random(currentCluster.points.size()));
+        PVector startPos = currentCluster.points.get(index);
+        currentCluster.points.remove(index);
+        strokePoints.add(startPos);
+        Collections.sort(currentCluster.points, new DistanceComparator(startPos)); // sort points by distance from centroid        
+      } else {
+        advanceCluster();
+      }
     } else {
       ready = true;
     }
@@ -74,20 +85,30 @@ class MeshSurface {
       strokes.add(stroke);
     }
     
+    if (currentCluster.points.size() < minClusterPointsRemaining) advanceCluster();
     chooseStartingPoint();
   }
   
+  void advanceCluster() {
+    whichCluster++;
+    if (whichCluster < kmeans.clusters.size()-1) {
+      chooseStartingPoint();    
+    } else {
+      ready = true;
+    }
+  }
+  
   void update() {
-    if (!ready) {
+    if (!ready && kmeans.ready) {
       if (firstRun) {
         regenerateShape();
         chooseStartingPoint();
         firstRun = false;
       } else {
-        if (strokePoints.size() < maxStrokePointCount && points.size() > 1) {
+        if (strokePoints.size() < maxStrokePointCount && currentCluster.points.size() > 1) {
           PVector currentPos = strokePoints.get(strokePoints.size()-1);
-          PVector nextPos = points.get(0);
-          points.remove(0);
+          PVector nextPos = currentCluster.points.get(0);
+          currentCluster.points.remove(0);
           
           float nextDist = currentPos.dist(nextPos);
           if (nextDist < maxPointDistance) {
@@ -110,8 +131,12 @@ class MeshSurface {
   }
   
   void run() {
-    if (!ready) update();
-    draw();
+    if (!kmeans.ready) {
+      kmeans.run();
+    } else {
+      update();
+      draw();
+    }
   }
   
 }

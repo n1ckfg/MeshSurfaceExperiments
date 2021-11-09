@@ -2,13 +2,13 @@ import peasy.*;
 
 PeasyCam cam;
 RDP rdp;
-MeshSurface ms;
+MeshSurfaceK ms;
 String url = "battle_pod_remesh.obj";
 
 void setup() {
   size(800, 600, P3D);
   cam = new PeasyCam(this, 600);
-  ms = new MeshSurface(url);
+  ms = new MeshSurfaceK(url);
   rdp = new RDP();
 }
 
