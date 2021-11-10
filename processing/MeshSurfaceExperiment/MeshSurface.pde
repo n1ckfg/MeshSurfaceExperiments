@@ -7,19 +7,25 @@ class MeshSurface {
   ArrayList<PVector> strokePoints;
   ArrayList<Stroke> strokes;
   int maxStrokePointCount = 200;
-  float maxPointDistance = 100;
+  float maxPointDistance = 200;
   float globalScale = 1000;
   PShape ps;
   boolean ready = false;
-  boolean firstRun = true;
   int resample = 10;
+  PVector startPos;
+  int startPosIndex;
+  int pointsCounter = 0;
   
   MeshSurface(String url) { 
     points = loadFromShape(url);
+    println("Loaded " + points.size() + " points");
     strokes = new ArrayList<Stroke>();
+    generateShape();
+   
+    chooseStartPos();   
   }
   
-  void regenerateShape() {
+  void generateShape() {
     ps = createShape();
     ps.beginShape(POINTS);
     ps.stroke(0);
@@ -51,47 +57,34 @@ class MeshSurface {
     
     return returns;
   }
-    
-  void chooseStartingPoint() {  
-    if (points.size() > 0) {
-      ready = false;
-      strokePoints = new ArrayList<PVector>();
-      
-      int index = int(random(points.size()));
-      PVector startPos = points.get(index);
-      points.remove(index);
-      strokePoints.add(startPos);
-      Collections.sort(points, new DistanceComparator(startPos)); // sort points by distance from centroid        
-    } else {
-      ready = true;
-    }
+  
+  void chooseStartPos() {
+    strokePoints = new ArrayList<PVector>();
+    startPosIndex = int(random(points.size() - maxStrokePointCount));
+    startPos = points.get(startPosIndex);
+    strokePoints.add(startPos);
+    Collections.sort(points, new DistanceComparator(startPos));    
+    pointsCounter++;
   }
   
   void advanceStroke() {
-    if (strokePoints.size() > 1) {
-      Stroke stroke = new Stroke(strokePoints);
-      //stroke.refine();
-      strokes.add(stroke);
-    }
-    
-    chooseStartingPoint();
+    strokes.add(new Stroke(strokePoints));
+    chooseStartPos();
   }
   
   void update() {
     if (!ready) {
-      if (firstRun) {
-        regenerateShape();
-        chooseStartingPoint();
-        firstRun = false;
+      if (pointsCounter > points.size() - maxStrokePointCount) {
+        ready = true;
       } else {
-        if (strokePoints.size() < maxStrokePointCount && points.size() > 1) {
-          PVector currentPos = strokePoints.get(strokePoints.size()-1);
-          PVector nextPos = points.get(0);
-          points.remove(0);
-          
-          float nextDist = currentPos.dist(nextPos);
-          if (nextDist < maxPointDistance) {
-            strokePoints.add(nextPos);
+        if (strokePoints.size() < maxStrokePointCount) {
+          PVector current = points.get(strokePoints.size() - 1);
+          PVector next = points.get(strokePoints.size());
+          if (current.dist(next) < maxPointDistance) {
+            strokePoints.add(next);
+            pointsCounter++;
+          } else {
+            advanceStroke();
           }
         } else {
           advanceStroke();
@@ -103,14 +96,13 @@ class MeshSurface {
   void draw() {
     shape(ps);
     
-    //strokeWeight(0.001);
     for (Stroke stroke : strokes) {
       stroke.run();
     }
   }
   
   void run() {
-    if (!ready) update();
+    update();
     draw();
   }
   
